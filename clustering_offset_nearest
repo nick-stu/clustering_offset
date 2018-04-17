@@ -1,8 +1,9 @@
-function [ mdl ] = clustering_offset_nearest( data )
+function [ mdl ] = clustering_offset_nearest( data ,isPlot)
 % mdl.data: 聚类的训练样本
 % mdl.label: 聚类的训练样本的分类
 % mdl.classNum: 聚类后形成的类的数量
 % 最佳加入点依据最近距离
+% 阈值判断为加入后当前类的平均距离
 
     mergeThreshold = 1.05;
     mdl.data = data;
@@ -43,7 +44,10 @@ function [ mdl ] = clustering_offset_nearest( data )
                 min_i = j;
             end
         end
-        dis(i) = min_d;
+        
+        [avg,~]=classStatus([mdl.data(cursor,:);data(min_i, :)]);
+        
+        dis(i) = avg;
         if dis(i) <= threshold
             class_label(p_label(min_i))=classFlag;
             label(i)=label(i-1);
@@ -57,27 +61,19 @@ function [ mdl ] = clustering_offset_nearest( data )
         pre_index(p_label(min_i)) = i;
         p_label(min_i) = [];
     end
-    %%
-%     figure;
-%     plot(dis);
-%     title('样本与类的平均距离和样本号');
-%     hold on;
-%     plot([0, num + 1], [threshold, threshold]);
-%     xlim([0, num + 1]);
-%     for i=1:num
-%         text(i, dis(i), num2str(find(pre_index==i)));
-%     end
     %% 
     classNum=max(class_label);
-    figure;
-    plot(dis);
-    title('未进行合并相似类前的样本与类的平均距离与样本归属类');
-    hold on;
-    plot([0, num + 1], [threshold, threshold]);
-    xlim([0, num + 1]);
-    % plot label
-    for i=1:num
-        text(i, dis(i), num2str(label(i)));
+    if isPlot==true
+        figure;
+        plot(dis);
+        title('未进行合并相似类前的样本与类的平均距离与样本归属类');
+        hold on;
+        plot([0, num + 1], [threshold, threshold]);
+        xlim([0, num + 1]);
+        % plot label
+        for i=1:num
+            text(i, dis(i), num2str(label(i)));
+        end
     end
     data = finded;
     %% 合并相似类
@@ -125,28 +121,20 @@ function [ mdl ] = clustering_offset_nearest( data )
 
     %% 画图看下分类的准确性
     dis(1) = dis(2);
-    figure;
-    plot(dis);
-    title("合并类之后的平均距离情况与样本归属类");
-    hold on;
-    plot([0, num + 1], [threshold, threshold]);
-    xlim([0, num + 1]);
-    % plot label
-    for i=1:num
-        text(i, dis(i), num2str(label(i)));
+    if isPlot==true
+        figure;
+        plot(dis);
+        title("合并类之后的平均距离情况与样本归属类");
+        hold on;
+        plot([0, num + 1], [threshold, threshold]);
+        xlim([0, num + 1]);
+        % plot label
+        for i=1:num
+            text(i, dis(i), num2str(label(i)));
+        end
     end
-    
     %% 恢复标签与 data 的对应关系
     label = label(pre_index);
-    %% 查看分类效果
-%     figure;
-%     lineMat=30.5:30:150;
-%     scatter(1:num,label,'k'); hold on;
-%     for i=1:4
-%         plot([lineMat(i) lineMat(i)],[0,classNum+1],'r--');
-%     end
-%     ylim([0,classNum+1]);
-%     
     mdl.label = label;
     mdl.classNum = classNum;
 end
