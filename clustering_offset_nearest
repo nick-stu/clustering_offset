@@ -4,7 +4,7 @@ function [ mdl ] = clustering_offset_nearest( data )
 % mdl.classNum: 聚类后形成的类的数量
 % 最佳加入点依据最近距离
 
-    mergeThreshold = 0;
+    mergeThreshold = 1.05;
     mdl.data = data;
     num = size(data, 1);
     label = zeros(1, num);
@@ -107,7 +107,7 @@ function [ mdl ] = clustering_offset_nearest( data )
             end
         end
 %         fprintf('%d %d %.4f %d\n', i, min_j, min_d, sum(label == i));
-        if min_d < mergeThreshold %|| size(data1,1)<=3
+        if min_d < mergeThreshold || size(data1,1)<=3
             label(label == i) = min_j;
         end
     end
