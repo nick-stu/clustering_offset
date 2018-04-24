@@ -13,7 +13,7 @@ function [ mdl ] = clustering_offset_nearest( data ,isPlot)
     p_label = 1:num; % data标志序列
     [avgTotal,std]=classStatus(data);
     threshold = avgTotal-std; % 这里是平均距离
-    mergeThreshold = threshold*1;
+    mergeThreshold = threshold*1.3;
 %     fprintf('threshold: %s ',threshold);
     %% 找出两两距离最小的两个点
     D = pdist2(data, data);
@@ -45,15 +45,13 @@ function [ mdl ] = clustering_offset_nearest( data ,isPlot)
                 min_i = j;
             end
         end
-        %%
 %         D=densityBasedonNeighbor(mdl.data(cursor,:),data(min_i, :),5);
 %         DMat=[DMat D];
         
-%%
         [avg,~]=classStatus([mdl.data(cursor,:);data(min_i, :)]);
         
         dis(i) = avg;
-        if avg <= threshold || (size(cursor,2)<=2)
+        if avg <= threshold % 这里不宜设置点数过小时无条件加入
             class_label(p_label(min_i))=classFlag;
             label(i)=label(i-1);
         else
@@ -82,38 +80,6 @@ function [ mdl ] = clustering_offset_nearest( data ,isPlot)
     end
     data = finded;
     %% 合并相似类
-    %% 基于平均距离变化率
-%     for i=1:classNum
-%         index = find(label == i);
-%         if size(index, 2) == 0
-%             continue
-%         end
-%         
-%         data1 = data(index, :); % 属于该类数据
-%         min_d = Inf;
-%         min_j = 0;
-%         for j=1:classNum
-%             if i == j
-%                 continue
-%             end
-%             index = find(label == j); % 另一个类的
-%             if size(index, 2) < size(data1, 1) % 若是个大类，则继续运行
-%                 continue
-%             end
-%             data2 = data(index, :); % 新类的数据
-%             d1 = mean(pdist(data2)); % 新类的平均距离
-%             d2 = mean(pdist([data1; data2]));  % 合在一起的平均距离
-%             if d2 / d1 < min_d
-%                 min_d = d2 / d1;
-%                 min_j = j;
-%             end
-%         end
-% %         fprintf('%d %d %.4f %d\n', i, min_j, min_d, sum(label == i));
-%         if min_d < mergeThreshold || size(data1,1)<=3
-%             label(label == i) = min_j;
-%         end
-%     end
-    %% 
     for i=1:classNum
         index = find(label == i);
         if size(index, 2) == 0
@@ -128,7 +94,7 @@ function [ mdl ] = clustering_offset_nearest( data ,isPlot)
                 continue
             end
             index = find(label == j); % 另一个类的
-            if size(index, 2) < size(data1, 1) % 若是个大类，则继续运行
+            if size(index, 2) < size(data1, 1) % 若不是个大类，则跳过
                 continue
             end
             data2 = data(index, :); % 新类的数据
@@ -160,7 +126,52 @@ function [ mdl ] = clustering_offset_nearest( data ,isPlot)
             label(index) = classNum;
         end
     end
-
+    %% 样本平均化
+%     fprintf('%d %d\n',size(mdl.data, 1),classNum);% 打印总样本数和类数
+    sampleNum=floor( size(mdl.data, 1)/classNum );% 计算平均化样本数（向下取整）
+    for i=1:classNum
+        index=find(label==i);
+        inNum=sampleNum-length( index );% 需要添加的样本数
+%         fprintf('class %d has %d points. sampleNum is %d.\n',i,length( index ),sampleNum);
+        % 重要的是移到小类的点适不适合这个类，而不是这个点之前在大类是什么位置的
+        if inNum<=0 % 大类跳过
+            continue;
+        end
+        smallData=data(index,:); % 小类样本
+        bigClassTag=[]; indexTag=[];
+        bigClassData=[];
+        % 大类样本
+        for k=1:classNum
+            index=find(label==k);
+            if sampleNum<length( index )
+                bigClassData=[bigClassData ;data(index,:)];
+                bigClassTag=[bigClassTag repmat( k,[1,length(index)] )];% 标记,标明为哪个类
+                indexTag=[indexTag index];
+            end
+        end    
+        % I代表位置
+        [~,I] = sort ( sum(pdist2(bigClassData,smallData),2) ); % 这里的指标暂取平均距离
+        % 刷新标记
+        bigClassTag=bigClassTag(I);
+        indexTag=indexTag(I);
+        % 从大类中取出最适合的inNum个点
+        j=1; k=0;
+        while j<=inNum
+            k=k+1;
+            index=find( label== bigClassTag(k) );
+            if length(index)<=sampleNum
+                continue;
+            end
+            label( indexTag(k) )=i;
+            j=j+1;
+        end
+    end
+%     检查一下平均情况
+%     fprintf('-------------------------------------------------------\n');
+    for i=1:classNum
+        index=find(label==i);
+%         fprintf('class %d has %d points. sampleNum is %d.\n',i,length( index ),sampleNum);
+    end
     %% 画图看下分类的准确性
     dis(1) = dis(2);
     if isPlot==true
@@ -179,5 +190,4 @@ function [ mdl ] = clustering_offset_nearest( data ,isPlot)
     label = label(pre_index);
     mdl.label = label;
     mdl.classNum = classNum;
-%     fprintf('%d\n',classNum);
 end
